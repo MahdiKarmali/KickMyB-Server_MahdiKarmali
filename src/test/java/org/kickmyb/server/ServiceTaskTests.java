@@ -8,6 +8,8 @@ import org.kickmyb.server.task.ServiceTask;
 import org.kickmyb.transfer.AddTaskRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
@@ -15,10 +17,12 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.util.Collections;
 import java.util.Date;
 
 import static org.assertj.core.api.Fail.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 // TODO pour celui ci on aimerait pouvoir mocker l'utilisateur pour ne pas avoir à le créer
 
@@ -112,4 +116,74 @@ class ServiceTaskTests {
             assertEquals(ServiceTask.Existing.class, e.getClass());
         }
     }
+
+    private void authentifier(MUser utilisateur) {
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(utilisateur.username, utilisateur.password, Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+    }
+
+    @Test
+    void testSupprimerTache_Valide() throws Exception {
+        MUser u = new MUser();
+        u.username = "Alice";
+        u.password = passwordEncoder.encode("1234");
+        userRepository.saveAndFlush(u);
+
+        AddTaskRequest req = new AddTaskRequest();
+        req.name = "Tâche à supprimer";
+        req.deadline = new Date();
+        serviceTask.addOne(req, u);
+
+        // Recharger utilisateur et ses tâches
+        MUser updated = userRepository.findById(u.id).get();
+        authentifier(updated);
+
+        Long idTache = updated.tasks.get(0).id;
+        serviceTask.supprimerTache(idTache);
+
+        assertEquals(0, serviceTask.home(updated.id).size());
+    }
+
+
+
+
+    @Test
+    void testSupprimerTache_IdInexistant() {
+        assertThrows(Exception.class, () -> {
+            serviceTask.supprimerTache(999L);
+        });
+    }
+
+
+    @Test
+    void testSupprimerTache_ParUnAutreUser() throws Exception {
+        // Alice
+        MUser alice = new MUser();
+        alice.username = "Alice";
+        alice.password = passwordEncoder.encode("pass");
+        userRepository.saveAndFlush(alice);
+
+        AddTaskRequest req = new AddTaskRequest();
+        req.name = "Tâche d'Alice";
+        req.deadline = new Date();
+        serviceTask.addOne(req, alice);
+        Long idTache = userRepository.findByUsername("Alice").get().tasks.get(0).id;
+
+        // Bob
+        MUser bob = new MUser();
+        bob.username = "Bob";
+        bob.password = passwordEncoder.encode("pass");
+        userRepository.saveAndFlush(bob);
+
+        authentifier(bob); // pour simuler Bob comme utilisateur connecté
+
+        // ⚠ Pas de simulation d'authentification ici → sécurité à mocker si nécessaire
+        assertThrows(SecurityException.class, () -> {
+            serviceTask.supprimerTache(idTache);
+        });
+
+
+
+    }
+
 }

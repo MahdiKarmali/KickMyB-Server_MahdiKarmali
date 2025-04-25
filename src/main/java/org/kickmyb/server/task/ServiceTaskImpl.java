@@ -5,6 +5,8 @@ import org.kickmyb.server.account.MUser;
 import org.kickmyb.server.account.MUserRepository;
 import org.kickmyb.transfer.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -179,5 +181,33 @@ public class ServiceTaskImpl implements ServiceTask {
 
         return response;
     }
+
+    private MUser currentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        return userFromUsername(username); // méthode déjà existante dans ta classe
+    }
+
+    @Override
+    public void supprimerTache(Long id) {
+        MUser currentUser = currentUser();
+        MTask task = repo.findById(id).orElseThrow();
+
+        if (!currentUser.tasks.contains(task)) {
+            throw new SecurityException("Vous ne pouvez pas supprimer cette tâche.");
+        }
+
+        // ✅ Étape essentielle : enlever la tâche de la liste de l'utilisateur
+        currentUser.tasks.remove(task);
+        repoUser.save(currentUser); // sauver l’utilisateur mis à jour
+
+        // ✅ Puis supprimer la tâche
+        repo.deleteById(id);
+    }
+
+
+
+
+
 
 }

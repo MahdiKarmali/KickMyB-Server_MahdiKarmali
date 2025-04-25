@@ -23,4 +23,7 @@ public interface ServiceTask {
     String index();
 
     MUser userFromUsername(String username);
+
+    void supprimerTache(Long id);
+
 }

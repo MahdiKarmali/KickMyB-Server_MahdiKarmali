@@ -69,4 +69,11 @@ public class ControllerTask {
         UserDetails ud = (UserDetails) authentication.getPrincipal();
         return serviceTask.userFromUsername(ud.getUsername());
     }
+
+    @DeleteMapping("/api/delete/{id}")
+    public void deleteTask(@PathVariable Long id) {
+        serviceTask.supprimerTache(id);
+    }
+
+
 }
