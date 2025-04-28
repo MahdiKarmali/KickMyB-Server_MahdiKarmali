@@ -192,15 +192,19 @@ public class ServiceTaskImpl implements ServiceTask {
     public void supprimerTache(Long id, MUser user) {
         MTask task = repo.findById(id).orElseThrow();
 
-        if (!user.tasks.contains(task)) {
+        boolean appartient = user.tasks.stream().anyMatch(t -> t.id.equals(task.id));
+        if (!appartient) {
             throw new SecurityException("Vous ne pouvez pas supprimer cette tâche.");
         }
 
-        user.tasks.remove(task);
-        repoUser.saveAndFlush(user); // sauve l'utilisateur modifié
+        // 1. Supprimer la relation d'abord
+        user.tasks.removeIf(t -> t.id.equals(task.id));
+        repoUser.saveAndFlush(user); // 🔥 Il faut d'abord sauver l'utilisateur sans la tâche
 
+        // 2. Ensuite seulement, supprimer la tâche
         repo.deleteById(id);
     }
+
 
 
 

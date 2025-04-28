@@ -134,12 +134,17 @@ class ServiceTaskTests {
         req.deadline = new Date();
         serviceTask.addOne(req, u);
 
-        // Recharger utilisateur et ses tâches
-        MUser updated = userRepository.findById(u.id).get();
+        // Recharger utilisateur
+        MUser updated = userRepository.findByUsername("Alice").get();
         authentifier(updated);
 
+        // 🔥 Forcer explicitement à récupérer la tâche créée
+        updated = userRepository.findById(updated.id).get();
+        updated.tasks = userRepository.findById(updated.id).get().tasks; // 🔥 Ajoute cette ligne !!
+
         Long idTache = updated.tasks.get(0).id;
-        serviceTask.supprimerTache(idTache);
+
+        serviceTask.supprimerTache(idTache, updated);
 
         assertEquals(0, serviceTask.home(updated.id).size());
     }
@@ -147,10 +152,18 @@ class ServiceTaskTests {
 
 
 
+
+
     @Test
     void testSupprimerTache_IdInexistant() {
         assertThrows(Exception.class, () -> {
-            serviceTask.supprimerTache(999L);
+            MUser fakeUser = new MUser();
+            fakeUser.username = "Fake";
+            fakeUser.password = passwordEncoder.encode("pass");
+            userRepository.saveAndFlush(fakeUser);
+
+            serviceTask.supprimerTache(999L, fakeUser);
+
         });
     }
 
@@ -179,7 +192,8 @@ class ServiceTaskTests {
 
         // ⚠ Pas de simulation d'authentification ici → sécurité à mocker si nécessaire
         assertThrows(SecurityException.class, () -> {
-            serviceTask.supprimerTache(idTache);
+            serviceTask.supprimerTache(idTache, bob);
+
         });
 
 
