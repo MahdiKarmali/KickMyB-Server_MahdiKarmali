@@ -189,21 +189,19 @@ public class ServiceTaskImpl implements ServiceTask {
     }
 
     @Override
-    public void supprimerTache(Long id) {
-        MUser currentUser = currentUser();
+    public void supprimerTache(Long id, MUser user) {
         MTask task = repo.findById(id).orElseThrow();
 
-        if (!currentUser.tasks.contains(task)) {
+        if (!user.tasks.contains(task)) {
             throw new SecurityException("Vous ne pouvez pas supprimer cette tâche.");
         }
 
-        // ✅ Étape essentielle : enlever la tâche de la liste de l'utilisateur
-        currentUser.tasks.remove(task);
-        repoUser.save(currentUser); // sauver l’utilisateur mis à jour
+        user.tasks.remove(task);
+        repoUser.saveAndFlush(user); // sauve l'utilisateur modifié
 
-        // ✅ Puis supprimer la tâche
         repo.deleteById(id);
     }
+
 
 
 

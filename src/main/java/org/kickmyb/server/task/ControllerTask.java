@@ -70,9 +70,13 @@ public class ControllerTask {
         return serviceTask.userFromUsername(ud.getUsername());
     }
 
-    @DeleteMapping("/api/delete/{id}")
-    public void deleteTask(@PathVariable Long id) {
-        serviceTask.supprimerTache(id);
+    @DeleteMapping(value = "/api/delete/{id}", produces = "text/plain")
+    public @ResponseBody String deleteTask(@PathVariable long id) {
+        System.out.println("KICKB SERVER : Delete task id = " + id);
+        ConfigHTTP.attenteArticifielle();
+        MUser user = currentUser();
+        serviceTask.supprimerTache(id, user);
+        return "";
     }
 
 
