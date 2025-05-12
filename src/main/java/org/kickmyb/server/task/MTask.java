@@ -1,6 +1,7 @@
 package org.kickmyb.server.task;
 
 import jakarta.persistence.*;
+import org.kickmyb.server.account.MUser;
 import org.kickmyb.server.photo.MPhoto;
 
 import java.util.ArrayList;
@@ -28,5 +29,8 @@ public class MTask {
 
     @OneToOne
     public MPhoto photo;
+
+    @ManyToOne
+    public MUser user;
 
 }

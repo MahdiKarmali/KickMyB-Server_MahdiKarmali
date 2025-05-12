@@ -5,10 +5,12 @@ import org.kickmyb.server.account.MUser;
 import org.kickmyb.server.account.MUserRepository;
 import org.kickmyb.transfer.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -35,7 +37,13 @@ public class ServiceTaskImpl implements ServiceTask {
     @Override
     public TaskDetailResponse detail(Long id, MUser user) {
         //MTask element = user.tasks.stream().filter(elt -> elt.id == id).findFirst().get();
-        MTask element = repo.findById(id).get();
+        MTask element = repo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+
+        if (element.user.id != user.id) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to view this task");
+        }
+
         TaskDetailResponse response = new TaskDetailResponse();
         response.name = element.name;
         response.id = element.id;
@@ -69,6 +77,8 @@ public class ServiceTaskImpl implements ServiceTask {
         // tout est beau, on crée
         MTask t = new MTask();
         t.name = req.name;
+        t.user = user;
+
         t.creationDate = DateTime.now().toDate();
         if (req.deadline == null) {
             t.deadline = DateTime.now().plusDays(7).toDate();
@@ -82,15 +92,28 @@ public class ServiceTaskImpl implements ServiceTask {
 
     @Override
     public void updateProgress(long taskID, int value) {
-        MTask element = repo.findById(taskID).get();
         // TODO validate value is between 0 and 100
-        MProgressEvent pe= new MProgressEvent();
+        MTask element = repo.findById(taskID)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+
+        MUser current = currentUser();
+        if (!element.user.id.equals(current.id)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to modify this task");
+        }
+
+        if (value < 0 || value > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Progress must be between 0 and 100");
+        }
+
+        MProgressEvent pe = new MProgressEvent();
         pe.resultPercentage = value;
-        pe.completed = value ==100;
+        pe.completed = value == 100;
         pe.timestamp = DateTime.now().toDate();
         repoProgressEvent.save(pe);
+
         element.events.add(pe);
         repo.save(element);
+
     }
 
     @Override
